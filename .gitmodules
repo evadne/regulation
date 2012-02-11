@@ -1,0 +1,3 @@
+[submodule "Regulation/Frameworks/WyzihatKit"]
+	path = Regulation/Frameworks/WyzihatKit
+	url = git://github.com/iridia/WyzihatKit.git
