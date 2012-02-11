@@ -1,0 +1,118 @@
+/*
+ * Jakefile
+ * Regulation
+ *
+ * Created by You on February 11, 2012.
+ * Copyright 2012, Your Company All rights reserved.
+ */
+
+var ENV = require("system").env,
+    FILE = require("file"),
+    JAKE = require("jake"),
+    task = JAKE.task,
+    FileList = JAKE.FileList,
+    app = require("cappuccino/jake").app,
+    configuration = ENV["CONFIG"] || ENV["CONFIGURATION"] || ENV["c"] || "Debug",
+    OS = require("os"),
+	dependentFrameworks = ["WyzihatKit"],
+	PRODUCT_NAME = "Regulation";
+
+app ("Regulation", function(task)
+{
+    task.setBuildIntermediatesPath(FILE.join("Build", "Regulation.build", configuration));
+    task.setBuildPath(FILE.join("Build", configuration));
+
+    task.setFrameworksPath(ENV["FRAMEWORKS"]|| "Frameworks");
+	
+    task.setProductName("Regulation");
+    task.setIdentifier("com.iridia.regulation");
+    task.setVersion("1.0");
+    task.setAuthor("Evadne Wu at Iridia Productions");
+    task.setEmail("ev@iridia.tw");
+    task.setSummary("Regulation");
+    task.setSources((new FileList("**/*.j")).exclude(FILE.join("Build", "**")).exclude(FILE.join("Frameworks", "**")) );
+    task.setResources(new FileList("Resources/**/*"));
+    task.setIndexFilePath("index.html");
+    task.setInfoPlistPath("Info.plist");
+
+    if (configuration === "Debug")
+        task.setCompilerFlags("-DDEBUG -g");
+    else
+        task.setCompilerFlags("-O");
+});
+
+task ("default", ["Regulation"], function()
+{
+    printResults(configuration);
+});
+
+task ("build", ["default"], function () {
+
+	dependentFrameworks.forEach(function (aName) {
+	
+		print("Dependent: " + aName);
+					
+		var copyFrom = FILE.join("Frameworks", aName, "Build", configuration, aName);
+		var copyTo = FILE.join("Build", configuration, PRODUCT_NAME, "Frameworks", aName);
+		var invokedSubjake = "Frameworks/" + aName;
+
+		print("Invoking Subjake on custom framework: " + invokedSubjake);
+		print("Copying artifacts from: " + copyFrom);
+		print("Copying artifacts to: " + copyTo);
+		
+		JAKE.subjake([ invokedSubjake ], "build", ENV); // ?
+
+		try { FILE.rmtree(copyTo); } catch (e) { print (e); }
+		try { FILE.copyTree(copyFrom, copyTo); } catch (anException) { print(anException); }
+		
+	});
+
+});
+
+task ("debug", function()
+{
+    ENV["CONFIGURATION"] = "Debug";
+    JAKE.subjake(["."], "build", ENV);
+});
+
+task ("release", function()
+{
+    ENV["CONFIGURATION"] = "Release";
+    JAKE.subjake(["."], "build", ENV);
+});
+
+task ("run", ["debug"], function()
+{
+    OS.system(["open", FILE.join("Build", "Debug", "Regulation", "index.html")]);
+});
+
+task ("run-release", ["release"], function()
+{
+    OS.system(["open", FILE.join("Build", "Release", "Regulation", "index.html")]);
+});
+
+task ("deploy", ["release"], function()
+{
+    FILE.mkdirs(FILE.join("Build", "Deployment", "Regulation"));
+    OS.system(["press", "-f", FILE.join("Build", "Release", "Regulation"), FILE.join("Build", "Deployment", "Regulation")]);
+    printResults("Deployment")
+});
+
+task ("desktop", ["release"], function()
+{
+    FILE.mkdirs(FILE.join("Build", "Desktop", "Regulation"));
+    require("cappuccino/nativehost").buildNativeHost(FILE.join("Build", "Release", "Regulation"), FILE.join("Build", "Desktop", "Regulation", "Regulation.app"));
+    printResults("Desktop")
+});
+
+task ("run-desktop", ["desktop"], function()
+{
+    OS.system([FILE.join("Build", "Desktop", "Regulation", "Regulation.app", "Contents", "MacOS", "NativeHost"), "-i"]);
+});
+
+function printResults(configuration)
+{
+    print("----------------------------");
+    print(configuration+" app built at path: "+FILE.join("Build", configuration, "Regulation"));
+    print("----------------------------");
+}
